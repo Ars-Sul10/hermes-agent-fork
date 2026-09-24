@@ -1,0 +1,2744 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Aquera Shrimp Farm Management API",
+    "version": "1.0.0",
+    "description": "Spesifikasi resmi OpenAPI 3.1.0 Aquera REST API. Dirancang untuk AI Agent (Hermes, Grok, ChatGPT), WhatsApp Bot, Mobile App, dan Third-Party Integrations. Seluruh operasi mutasi (POST, PUT, DELETE) dan query (GET) terisolasi berdasarkan Organization Tenant (CID) melalui Unified Service Layer.",
+    "contact": {
+      "name": "Aquera Engineering Team",
+      "url": "https://aquera.id"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://aquera.id",
+      "description": "Production Server"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": [],
+      "TenantCid": []
+    },
+    {
+      "ApiKeyAuth": [],
+      "TenantCid": []
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "getHealthStatus",
+        "tags": [
+          "Health Check"
+        ],
+        "summary": "Cek status kesehatan API dan koneksi database",
+        "description": "Digunakan oleh uptime monitor atau AI agent untuk memverifikasi apakah server API dan koneksi Supabase beroperasi normal.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API dan database sehat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database atau layanan mengalami gangguan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organization": {
+      "get": {
+        "operationId": "getOrganization",
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Ambil profil organisasi aktif berdasarkan CID",
+        "description": "Mengembalikan informasi organisasi/tenant, nama tambak, status aktif, dan modul fitur yang tersedia.",
+        "responses": {
+          "200": {
+            "description": "Data organisasi berhasil diambil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/api/v1/user-context": {
+      "get": {
+        "operationId": "getUserContext",
+        "tags": [
+          "User Context"
+        ],
+        "summary": "Ambil konteks pengguna, role, dan hak akses",
+        "description": "Memberikan informasi siapa user yang saat ini menjalankan aksi, jabatannya, serta permission module (finance, report, hr). Sangat penting bagi AI Hermes untuk membatasi aksi sensitif berdasarkan role user.",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID user opsional untuk melihat konteks user tertentu"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Konteks user berhasil diambil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserContextResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/summary": {
+      "get": {
+        "operationId": "getDashboardSummary",
+        "tags": [
+          "Dashboard & Metrics"
+        ],
+        "summary": "Ringkasan metrik dashboard tambak",
+        "description": "Mengambil KPI operasional tambak secara real-time: total kolam, siklus aktif, total panen (kg), estimasi revenue (Rp), total pakan terpakai (kg), dan frekuensi sampling.",
+        "responses": {
+          "200": {
+            "description": "Ringkasan KPI tambak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/farm-sites": {
+      "get": {
+        "operationId": "listFarmSites",
+        "tags": [
+          "Farm Sites"
+        ],
+        "summary": "Daftar semua lokasi tambak",
+        "description": "Mengambil seluruh site / lokasi tambak milik organisasi.",
+        "responses": {
+          "200": {
+            "description": "Daftar lokasi tambak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 2
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FarmSite"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createFarmSite",
+        "tags": [
+          "Farm Sites"
+        ],
+        "summary": "Tambah lokasi tambak baru",
+        "description": "Membuat data lokasi tambak baru.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFarmSiteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lokasi tambak berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateFarmSite",
+        "tags": [
+          "Farm Sites"
+        ],
+        "summary": "Perbarui data lokasi tambak",
+        "description": "Mengubah nama atau lokasi fisik tambak.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFarmSiteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lokasi tambak berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFarmSite",
+        "tags": [
+          "Farm Sites"
+        ],
+        "summary": "Hapus lokasi tambak",
+        "description": "Menghapus data lokasi tambak beserta validasi relasi kolam.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID lokasi tambak yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lokasi tambak berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/ponds": {
+      "get": {
+        "operationId": "listPonds",
+        "tags": [
+          "Ponds"
+        ],
+        "summary": "Daftar semua kolam",
+        "description": "Mengambil daftar seluruh kolam budidaya beserta referensi lokasi tambak.",
+        "responses": {
+          "200": {
+            "description": "Daftar kolam",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 8
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Pond"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPond",
+        "tags": [
+          "Ponds"
+        ],
+        "summary": "Tambah kolam baru",
+        "description": "Mendaftarkan kolam budidaya baru dalam suatu lokasi tambak.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePondInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Kolam berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updatePond",
+        "tags": [
+          "Ponds"
+        ],
+        "summary": "Perbarui data kolam",
+        "description": "Memperbarui nama, kode, atau luas kolam.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePondInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Kolam berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePond",
+        "tags": [
+          "Ponds"
+        ],
+        "summary": "Hapus kolam",
+        "description": "Menghapus kolam budidaya berdasarkan ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID kolam yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kolam berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/cycles": {
+      "get": {
+        "operationId": "listCycles",
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Daftar siklus budidaya",
+        "description": "Mengambil daftar siklus budidaya udang beserta status dan target panen.",
+        "responses": {
+          "200": {
+            "description": "Daftar siklus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Cycle"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCycle",
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Buat siklus budidaya baru",
+        "description": "Membuka siklus budidaya baru pada kolam tertentu.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCycleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Siklus berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateCycle",
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Perbarui siklus budidaya",
+        "description": "Mengubah status siklus (active, completed, closed), target panen, atau tanggal.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCycleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Siklus berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCycle",
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Hapus siklus budidaya",
+        "description": "Menghapus siklus budidaya jika belum memiliki pencatatan terkunci.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID siklus yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Siklus berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/stocking": {
+      "get": {
+        "operationId": "listStocking",
+        "tags": [
+          "Stocking"
+        ],
+        "summary": "Daftar catatan tebar benur",
+        "description": "Mengambil riwayat tebar benur (post larva) per siklus dan kolam.",
+        "responses": {
+          "200": {
+            "description": "Daftar pencatatan tebar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 3
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Stocking"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createStocking",
+        "tags": [
+          "Stocking"
+        ],
+        "summary": "Catat tebar benur baru",
+        "description": "Mencatat tebar bibit benur (jumlah PL, umur bibit, supplier hatchery, tanggal tebar).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStockingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Catatan tebar berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateStocking",
+        "tags": [
+          "Stocking"
+        ],
+        "summary": "Perbarui catatan tebar benur",
+        "description": "Mengoreksi jumlah tebar benur atau nama supplier.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStockingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Catatan tebar berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteStocking",
+        "tags": [
+          "Stocking"
+        ],
+        "summary": "Hapus catatan tebar benur",
+        "description": "Menghapus catatan tebar benur berdasarkan ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID catatan tebar benur yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catatan tebar berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/sampling": {
+      "get": {
+        "operationId": "listSampling",
+        "tags": [
+          "Sampling"
+        ],
+        "summary": "Daftar catatan sampling udang & air",
+        "description": "Mengambil data sampling pertumbuhan (ABW, ADG, SR) dan parameter kualitas air (pH, DO, suhu).",
+        "responses": {
+          "200": {
+            "description": "Daftar sampling",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 12
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Sampling"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSampling",
+        "tags": [
+          "Sampling"
+        ],
+        "summary": "Catat sampling baru",
+        "description": "Mencatat pengukuran sampling bobot udang dan parameter air kolam.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSamplingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Catatan sampling berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateSampling",
+        "tags": [
+          "Sampling"
+        ],
+        "summary": "Perbarui catatan sampling",
+        "description": "Mengoreksi angka hasil sampling (misal ABW atau pH).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSamplingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sampling berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSampling",
+        "tags": [
+          "Sampling"
+        ],
+        "summary": "Hapus catatan sampling",
+        "description": "Menghapus catatan sampling berdasarkan ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID catatan sampling yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sampling berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/feed-brands": {
+      "get": {
+        "operationId": "listFeedBrands",
+        "tags": [
+          "Feed Brands"
+        ],
+        "summary": "Daftar merek dan varian pakan",
+        "description": "Mengambil katalog merek pakan beserta varian item ukuran dan harganya.",
+        "responses": {
+          "200": {
+            "description": "Daftar merek pakan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 4
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FeedBrand"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createFeedBrand",
+        "tags": [
+          "Feed Brands"
+        ],
+        "summary": "Tambah merek pakan baru",
+        "description": "Mendaftarkan merek pakan beserta daftar varian pelet pakan.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeedBrandInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Merek pakan berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateFeedBrand",
+        "tags": [
+          "Feed Brands"
+        ],
+        "summary": "Perbarui merek pakan",
+        "description": "Mengubah nama merek pakan.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeedBrandInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Merek pakan berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFeedBrand",
+        "tags": [
+          "Feed Brands"
+        ],
+        "summary": "Hapus merek pakan",
+        "description": "Menghapus merek pakan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID merek pakan yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merek pakan berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/feed-log": {
+      "get": {
+        "operationId": "listFeedLogs",
+        "tags": [
+          "Feed Log"
+        ],
+        "summary": "Daftar riwayat pemberian pakan",
+        "description": "Mengambil log pemberian pakan harian.",
+        "responses": {
+          "200": {
+            "description": "Daftar pemberian pakan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 45
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FeedLog"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createFeedLog",
+        "tags": [
+          "Feed Log"
+        ],
+        "summary": "Catat pemberian pakan",
+        "description": "Mencatat takaran pakan harian ke kolam tertentu.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeedLogInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Log pakan berhasil disimpan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateFeedLog",
+        "tags": [
+          "Feed Log"
+        ],
+        "summary": "Perbarui catatan pakan",
+        "description": "Mengoreksi jumlah kilogram pakan yang diberikan.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeedLogInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Log pakan berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFeedLog",
+        "tags": [
+          "Feed Log"
+        ],
+        "summary": "Hapus catatan pakan",
+        "description": "Menghapus catatan pemberian pakan berdasarkan ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID log pakan yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log pakan berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/harvest": {
+      "get": {
+        "operationId": "listHarvests",
+        "tags": [
+          "Harvest"
+        ],
+        "summary": "Daftar catatan panen",
+        "description": "Mengambil daftar seluruh panen udang (parsial maupun total) beserta rincian tonase dan size udang.",
+        "responses": {
+          "200": {
+            "description": "Daftar panen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 6
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Harvest"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createHarvest",
+        "tags": [
+          "Harvest"
+        ],
+        "summary": "Catat hasil panen",
+        "description": "Mencatat panen parsial/total baru beserta detail ukuran (size) dan berat (qty_kg). Mendukung single object atau array untuk batch insert.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHarvestInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Catatan panen berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteHarvest",
+        "tags": [
+          "Harvest"
+        ],
+        "summary": "Hapus catatan panen",
+        "description": "Menghapus catatan panen udang.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID panen yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catatan panen berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/invoice": {
+      "get": {
+        "operationId": "listInvoices",
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Daftar faktur penjualan",
+        "description": "Mengambil daftar faktur/invoice penjualan udang beserta status pembayaran dan rincian item.",
+        "responses": {
+          "200": {
+            "description": "Daftar invoice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 8
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Invoice"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInvoice",
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Buat faktur penjualan baru",
+        "description": "Membuat faktur penjualan hasil panen udang beserta item detail (qty, harga per kg).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvoiceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invoice berhasil dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateInvoice",
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Perbarui status atau rincian invoice",
+        "description": "Mengubah status pembayaran (unpaid, paid, cancelled), pembeli, atau item rincian invoice.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInvoiceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invoice berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteInvoice",
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Hapus faktur penjualan",
+        "description": "Menghapus invoice penjualan berdasarkan ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID invoice yang akan dihapus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoice berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "operationId": "getComprehensiveReports",
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Laporan komprehensif operasional tambak",
+        "description": "Mengambil data analitik terpadu yang menggabungkan siklus, tebar, pakan, sampling, panen, dan invoice. Dapat difilter berdasarkan cycle_id atau pond_id.",
+        "parameters": [
+          {
+            "name": "cycle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter laporan berdasarkan siklus tertentu"
+          },
+          {
+            "name": "pond_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter laporan berdasarkan kolam tertentu"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data laporan komprehensif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "report": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/v1/team": {
+      "get": {
+        "operationId": "listTeamMembers",
+        "tags": [
+          "Team"
+        ],
+        "summary": "Daftar anggota tim dan undangan",
+        "description": "Mengambil daftar anggota organisasi yang aktif beserta undangan pending.",
+        "responses": {
+          "200": {
+            "description": "Daftar tim berhasil diambil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "invitations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT/Secret",
+        "description": "Token otentikasi API Secret key (`AQUERA_API_SECRET`). Digunakan di header `Authorization: Bearer <SECRET>`."
+      },
+      "TenantCid": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-cid",
+        "description": "Organization Tenant CID (Wajib di semua request). Menentukan konteks isolasi data multi-tenant."
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Alternatif pengganti Bearer token pada header `x-api-key`."
+      }
+    },
+    "responses": {
+      "BadRequestError": {
+        "description": "Request tidak valid atau field wajib belum diisi",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiErrorResponse"
+            }
+          }
+        }
+      },
+      "UnauthorizedError": {
+        "description": "Secret key tidak ditemukan atau tidak valid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiErrorResponse"
+            }
+          }
+        }
+      },
+      "ForbiddenError": {
+        "description": "Tenant CID tidak valid atau organisasi dinonaktifkan",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "status": {
+            "type": "string",
+            "example": "healthy"
+          },
+          "service": {
+            "type": "string",
+            "example": "aquera-api"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "database": {
+            "type": "string",
+            "example": "connected"
+          },
+          "dbLatencyMs": {
+            "type": "number",
+            "example": 12
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-23T02:00:00.000Z"
+          }
+        }
+      },
+      "OrganizationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "organization": {
+            "type": "object",
+            "properties": {
+              "cid": {
+                "type": "string",
+                "example": "org_abc123"
+              },
+              "name": {
+                "type": "string",
+                "example": "PT Tambak Jaya"
+              },
+              "is_active": {
+                "type": "boolean",
+                "example": true
+              },
+              "finance_module_enabled": {
+                "type": "boolean",
+                "example": true
+              },
+              "report_access_enabled": {
+                "type": "boolean",
+                "example": true
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "UserContextResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "user_context": {
+            "type": "object",
+            "properties": {
+              "user_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "organization_id": {
+                "type": "string"
+              },
+              "full_name": {
+                "type": "string",
+                "example": "Budi Santoso"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "admin",
+                  "member",
+                  "viewer"
+                ],
+                "example": "admin"
+              },
+              "designation": {
+                "type": "string",
+                "example": "Manajer Tambak"
+              },
+              "status": {
+                "type": "string",
+                "example": "active"
+              },
+              "permissions": {
+                "type": "object",
+                "properties": {
+                  "finance_access_enabled": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "report_access_enabled": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "hr_admin_enabled": {
+                    "type": "boolean",
+                    "example": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "DashboardSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "total_ponds": {
+                "type": "integer",
+                "example": 8
+              },
+              "active_cycles": {
+                "type": "integer",
+                "example": 4
+              },
+              "total_harvest_kg": {
+                "type": "number",
+                "example": 12500.5
+              },
+              "total_revenue_idr": {
+                "type": "number",
+                "example": 875000000
+              },
+              "total_feed_used_kg": {
+                "type": "number",
+                "example": 15400
+              },
+              "total_samplings": {
+                "type": "integer",
+                "example": 32
+              }
+            }
+          }
+        }
+      },
+      "MutationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Operation completed successfully"
+          },
+          "data": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "Error description"
+          }
+        }
+      },
+      "FarmSite": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cid": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Tambak Dipasena Blok 1"
+          },
+          "location": {
+            "type": "string",
+            "example": "Tulang Bawang, Lampung"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateFarmSiteInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nama lokasi tambak",
+            "example": "Tambak Dipasena Blok 1"
+          },
+          "location": {
+            "type": "string",
+            "description": "Alamat atau koordinat fisik",
+            "example": "Tulang Bawang, Lampung"
+          }
+        }
+      },
+      "UpdateFarmSiteInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID lokasi tambak yang akan diupdate"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nama baru lokasi tambak",
+            "example": "Tambak Dipasena Blok 1 (Utara)"
+          },
+          "location": {
+            "type": "string",
+            "description": "Alamat fisik baru"
+          }
+        }
+      },
+      "Pond": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "farm_site_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Kolam A1"
+          },
+          "code": {
+            "type": "string",
+            "example": "A1"
+          },
+          "area_m2": {
+            "type": "number",
+            "example": 1000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreatePondInput": {
+        "type": "object",
+        "required": [
+          "farm_site_id",
+          "name",
+          "area_m2"
+        ],
+        "properties": {
+          "farm_site_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID lokasi tambak induk",
+            "example": "e1b2c3d4-0000-0000-0000-000000000001"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nama kolam",
+            "example": "Kolam B2"
+          },
+          "code": {
+            "type": "string",
+            "description": "Kode singkatan kolam",
+            "example": "B2"
+          },
+          "area_m2": {
+            "type": "number",
+            "description": "Luas kolam dalam meter persegi",
+            "example": 1200
+          }
+        }
+      },
+      "UpdatePondInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID kolam yang diedit"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nama baru kolam",
+            "example": "Kolam B2 (Revisi)"
+          },
+          "code": {
+            "type": "string",
+            "description": "Kode baru kolam"
+          },
+          "area_m2": {
+            "type": "number",
+            "description": "Luas baru kolam",
+            "example": 1250
+          }
+        }
+      },
+      "Cycle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pond_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycle_no": {
+            "type": "integer",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "closed"
+            ],
+            "example": "active"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-01"
+          },
+          "target_harvest_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-30"
+          },
+          "initial_count": {
+            "type": "integer",
+            "example": 100000
+          },
+          "target_size": {
+            "type": "integer",
+            "example": 40
+          }
+        }
+      },
+      "CreateCycleInput": {
+        "type": "object",
+        "required": [
+          "pond_id",
+          "cycle_no",
+          "start_date"
+        ],
+        "properties": {
+          "pond_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID kolam tempat siklus berjalan"
+          },
+          "cycle_no": {
+            "type": "integer",
+            "description": "Nomor siklus pada kolam tersebut",
+            "example": 2
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal mulai siklus (YYYY-MM-DD)",
+            "example": "2026-09-01"
+          },
+          "target_harvest_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Target tanggal panen",
+            "example": "2026-12-15"
+          },
+          "initial_count": {
+            "type": "integer",
+            "description": "Target total populasi benur",
+            "example": 120000
+          },
+          "target_size": {
+            "type": "integer",
+            "description": "Target size saat panen (ekor per kg)",
+            "example": 35
+          }
+        }
+      },
+      "UpdateCycleInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID siklus yang akan diperbarui"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "closed"
+            ],
+            "description": "Status siklus",
+            "example": "completed"
+          },
+          "target_harvest_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-20"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Catatan evaluasi siklus"
+          }
+        }
+      },
+      "Stocking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pl_count": {
+            "type": "integer",
+            "example": 100000
+          },
+          "pl_age_days": {
+            "type": "integer",
+            "example": 10
+          },
+          "stocked_at": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-05"
+          },
+          "supplier": {
+            "type": "string",
+            "example": "Hatchery Prima Benur"
+          }
+        }
+      },
+      "CreateStockingInput": {
+        "type": "object",
+        "required": [
+          "cycle_id",
+          "pl_count",
+          "stocked_at"
+        ],
+        "properties": {
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID siklus budidaya terkait"
+          },
+          "pl_count": {
+            "type": "integer",
+            "description": "Jumlah ekor benur yang ditebar",
+            "example": 100000
+          },
+          "pl_age_days": {
+            "type": "integer",
+            "description": "Umur benur (Post Larva / PL hari)",
+            "example": 10
+          },
+          "stocked_at": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal tebar benur (YYYY-MM-DD)",
+            "example": "2026-09-02"
+          },
+          "supplier": {
+            "type": "string",
+            "description": "Nama hatchery atau penyuplai benur",
+            "example": "PT Benur Nusantara"
+          }
+        }
+      },
+      "UpdateStockingInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID catatan tebar yang diperbarui"
+          },
+          "pl_count": {
+            "type": "integer",
+            "description": "Koreksi jumlah ekor benur",
+            "example": 105000
+          },
+          "supplier": {
+            "type": "string",
+            "description": "Nama supplier yang diperbarui"
+          }
+        }
+      },
+      "Sampling": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pond_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sampled_at": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-01"
+          },
+          "doc": {
+            "type": "integer",
+            "description": "Day of Culture",
+            "example": 30
+          },
+          "abw_g": {
+            "type": "number",
+            "description": "Average Body Weight (gram)",
+            "example": 8.5
+          },
+          "adg_g": {
+            "type": "number",
+            "description": "Average Daily Gain (gram/hari)",
+            "example": 0.28
+          },
+          "sr_percent": {
+            "type": "number",
+            "description": "Survival Rate (%)",
+            "example": 92
+          },
+          "ph": {
+            "type": "number",
+            "example": 7.8
+          },
+          "do_ppm": {
+            "type": "number",
+            "example": 5.4
+          },
+          "temp_c": {
+            "type": "number",
+            "example": 29.5
+          }
+        }
+      },
+      "CreateSamplingInput": {
+        "type": "object",
+        "required": [
+          "cycle_id",
+          "pond_id",
+          "sampled_at",
+          "abw_g"
+        ],
+        "properties": {
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID siklus budidaya"
+          },
+          "pond_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID kolam"
+          },
+          "sampled_at": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal sampling (YYYY-MM-DD)",
+            "example": "2026-09-15"
+          },
+          "doc": {
+            "type": "integer",
+            "description": "Umur budidaya (Day of Culture)",
+            "example": 45
+          },
+          "abw_g": {
+            "type": "number",
+            "description": "Bobot rata-rata udang (gram)",
+            "example": 12.4
+          },
+          "adg_g": {
+            "type": "number",
+            "description": "Laju pertumbuhan harian (gram/hari)",
+            "example": 0.35
+          },
+          "sr_percent": {
+            "type": "number",
+            "description": "Estimasi kelangsungan hidup (%)",
+            "example": 88.5
+          },
+          "ph": {
+            "type": "number",
+            "description": "Derajat keasaman air (pH)",
+            "example": 7.9
+          },
+          "do_ppm": {
+            "type": "number",
+            "description": "Dissolved Oxygen (ppm)",
+            "example": 5.8
+          },
+          "temp_c": {
+            "type": "number",
+            "description": "Suhu air kolam (°C)",
+            "example": 29.2
+          }
+        }
+      },
+      "UpdateSamplingInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID catatan sampling"
+          },
+          "abw_g": {
+            "type": "number",
+            "description": "Koreksi ABW (gram)",
+            "example": 12.8
+          },
+          "ph": {
+            "type": "number",
+            "description": "Koreksi pH",
+            "example": 8
+          }
+        }
+      },
+      "FeedBrand": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "brand_name": {
+            "type": "string",
+            "example": "Grobest"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "item_name": {
+                  "type": "string",
+                  "example": "Grobest No. 1 Crumble"
+                },
+                "price_per_kg": {
+                  "type": "number",
+                  "example": 18500
+                }
+              }
+            }
+          }
+        }
+      },
+      "CreateFeedBrandInput": {
+        "type": "object",
+        "required": [
+          "brand_name"
+        ],
+        "properties": {
+          "brand_name": {
+            "type": "string",
+            "description": "Nama merek pakan",
+            "example": "Evergreen"
+          },
+          "items": {
+            "type": "array",
+            "description": "Daftar varian pelet pakan",
+            "items": {
+              "type": "object",
+              "required": [
+                "item_name",
+                "price_per_kg"
+              ],
+              "properties": {
+                "item_name": {
+                  "type": "string",
+                  "example": "Evergreen Starter 1"
+                },
+                "price_per_kg": {
+                  "type": "number",
+                  "example": 19500
+                }
+              }
+            }
+          }
+        }
+      },
+      "UpdateFeedBrandInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID merek pakan"
+          },
+          "brand_name": {
+            "type": "string",
+            "description": "Nama merek pakan baru",
+            "example": "Evergreen Feed"
+          }
+        }
+      },
+      "FeedLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pond_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "feed_brand_item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qty_kg": {
+            "type": "number",
+            "example": 25.5
+          },
+          "fed_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-15T07:00:00Z"
+          }
+        }
+      },
+      "CreateFeedLogInput": {
+        "type": "object",
+        "required": [
+          "cycle_id",
+          "pond_id",
+          "feed_brand_item_id",
+          "qty_kg",
+          "fed_at"
+        ],
+        "properties": {
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID siklus budidaya"
+          },
+          "pond_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID kolam"
+          },
+          "feed_brand_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID varian pakan yang digunakan"
+          },
+          "qty_kg": {
+            "type": "number",
+            "description": "Jumlah berat pakan (kg)",
+            "example": 25.5
+          },
+          "fed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu pemberian pakan (ISO 8601)",
+            "example": "2026-09-23T07:00:00Z"
+          }
+        }
+      },
+      "UpdateFeedLogInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID catatan pakan"
+          },
+          "qty_kg": {
+            "type": "number",
+            "description": "Koreksi jumlah berat pakan (kg)",
+            "example": 24
+          }
+        }
+      },
+      "Harvest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pond_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "harvest_type": {
+            "type": "string",
+            "enum": [
+              "partial",
+              "total"
+            ],
+            "example": "partial"
+          },
+          "harvested_at": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-20"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "type": "integer",
+                  "example": 50
+                },
+                "qty_kg": {
+                  "type": "number",
+                  "example": 500
+                },
+                "price_per_kg": {
+                  "type": "number",
+                  "example": 73000
+                }
+              }
+            }
+          }
+        }
+      },
+      "CreateHarvestInput": {
+        "type": "object",
+        "required": [
+          "pond_id",
+          "cycle_id",
+          "harvest_type",
+          "harvested_at",
+          "details"
+        ],
+        "properties": {
+          "pond_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID kolam yang dipanen"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID siklus terkait"
+          },
+          "harvest_type": {
+            "type": "string",
+            "enum": [
+              "partial",
+              "total"
+            ],
+            "description": "Tipe panen: 'partial' (parsial) atau 'total'",
+            "example": "partial"
+          },
+          "harvested_at": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal panen (YYYY-MM-DD)",
+            "example": "2026-09-20"
+          },
+          "details": {
+            "type": "array",
+            "description": "Rincian size dan tonase udang yang dipanen",
+            "items": {
+              "type": "object",
+              "required": [
+                "size",
+                "qty_kg"
+              ],
+              "properties": {
+                "size": {
+                  "type": "integer",
+                  "description": "Size udang (jumlah ekor per kg)",
+                  "example": 50
+                },
+                "qty_kg": {
+                  "type": "number",
+                  "description": "Berat panen (kg)",
+                  "example": 500
+                },
+                "price_per_kg": {
+                  "type": "number",
+                  "description": "Harga jual per kg (Rp)",
+                  "example": 73000
+                }
+              }
+            }
+          }
+        }
+      },
+      "Invoice": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invoice_number": {
+            "type": "string",
+            "example": "INV-202609-001"
+          },
+          "buyer_name": {
+            "type": "string",
+            "example": "CV Udang Segar Nusantara"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unpaid",
+              "paid",
+              "cancelled"
+            ],
+            "example": "unpaid"
+          },
+          "invoice_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-20"
+          },
+          "total_amount": {
+            "type": "number",
+            "example": 36500000
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "CreateInvoiceInput": {
+        "type": "object",
+        "required": [
+          "buyer_name",
+          "invoice_date",
+          "items"
+        ],
+        "properties": {
+          "buyer_name": {
+            "type": "string",
+            "description": "Nama pembeli / tengkulak / cold storage",
+            "example": "CV Udang Prima Lestari"
+          },
+          "invoice_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal invoice (YYYY-MM-DD)",
+            "example": "2026-09-21"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Jatuh tempo pembayaran"
+          },
+          "items": {
+            "type": "array",
+            "description": "Daftar rincian item invoice",
+            "items": {
+              "type": "object",
+              "required": [
+                "description",
+                "qty_kg",
+                "unit_price"
+              ],
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "example": "Udang Vaname Size 50 (Kolam A1)"
+                },
+                "qty_kg": {
+                  "type": "number",
+                  "example": 500
+                },
+                "unit_price": {
+                  "type": "number",
+                  "example": 73000
+                }
+              }
+            }
+          }
+        }
+      },
+      "UpdateInvoiceInput": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID invoice yang diedit"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unpaid",
+              "paid",
+              "cancelled"
+            ],
+            "description": "Status baru invoice",
+            "example": "paid"
+          },
+          "buyer_name": {
+            "type": "string",
+            "description": "Nama pembeli baru"
+          }
+        }
+      }
+    }
+  }
+}
